@@ -152,12 +152,11 @@
       <h2 id="chartTitle">Totals</h2>
       <p class="explain">Each bar is a total you could roll. A taller bar means that total came up more often.
         The short dark line on each bar shows how often that total should come up with fair dice.
-        <span class="curveOnly">The orange curve is the bell curve (normal distribution) with the same
-        average and spread as the dice. </span>Point at a bar to see its numbers.</p>
+        <span class="curveOnly" id="curveExplain"></span>Point at a bar to see its numbers.</p>
       <div class="legend">
         <span><i class="k-bar"></i>Rolled</span>
         <span><i class="k-exp"></i>Expected on average</span>
-        <label class="toggle"><input type="checkbox" id="showCurve" checked><i class="k-curve"></i>Show normal curve</label>
+        <label class="toggle"><input type="checkbox" id="showCurve" checked><i class="k-curve"></i><span id="curveLabel">Show normal curve</span></label>
       </div>
       <div class="chartRow">
         <div id="chartWrap">
@@ -273,7 +272,9 @@
 
   function renderChart(s) {
     const svg = $('chart');
-    const curveOK = s.n >= CURVE_MIN;
+    // Overlay: normal curve for enough dice, the exact triangular shape for two, nothing for one.
+    const kind = s.n >= CURVE_MIN ? 'normal' : s.n === 2 ? 'triangular' : 'none';
+    const curveOK = kind !== 'none';
     $('results').classList.toggle('curve-na', !curveOK);
     const W = Math.max(280, $('chartWrap').clientWidth), H = 300;
     const m = { t: 12, r: 8, b: 26, l: 44 };
@@ -283,7 +284,8 @@
     const mu = 3.5 * s.n, sigma = Math.sqrt(s.n * 35 / 12);
     const normal = x => s.times * Math.exp(-((x - mu) ** 2) / (2 * sigma * sigma)) / (sigma * Math.sqrt(2 * Math.PI));
     const showCurve = curveOK && $('showCurve').checked;
-    const yMax = niceMax(Math.max(...s.counts, ...expCounts, showCurve ? normal(mu) : 0));
+    const overlayPeak = kind === 'normal' ? normal(mu) : kind === 'triangular' ? Math.max(...expCounts) : 0;
+    const yMax = niceMax(Math.max(...s.counts, ...expCounts, showCurve ? overlayPeak : 0));
     const y = v => m.t + ph - (v / yMax) * ph;
     const step = pw / k;
     const gap = step > 6 ? 2 : step > 3 ? 1 : 0;
@@ -309,23 +311,48 @@
       if (i % every === 0)
         out += `<text x="${x + bw / 2}" y="${H - 8}" text-anchor="middle">${i + s.n}</text>`;
     }
-    // Normal curve overlay: x runs half a bar past the lowest and highest totals.
-    const pts = [];
-    for (let j = 0; j <= 240; j++) {
-      const t = s.n - 0.5 + (k * j) / 240;
-      pts.push(`${(m.l + (t - s.n + 0.5) * step).toFixed(1)},${y(normal(t)).toFixed(1)}`);
+    const xOf = t => m.l + (t - s.n + 0.5) * step;
+    if (showCurve) {
+      let pts;
+      if (kind === 'normal') {
+        // Smooth bell curve running half a bar past the lowest and highest totals.
+        pts = [];
+        for (let j = 0; j <= 240; j++) {
+          const t = s.n - 0.5 + (k * j) / 240;
+          pts.push(`${xOf(t).toFixed(1)},${y(normal(t)).toFixed(1)}`);
+        }
+      } else {
+        // Exact triangle for two dice: rises to the peak at the mean, falls symmetrically to zero.
+        pts = [`${xOf(s.n - 1).toFixed(1)},${y(0).toFixed(1)}`,
+               `${xOf(mu).toFixed(1)},${y(overlayPeak).toFixed(1)}`,
+               `${xOf(6 * s.n + 1).toFixed(1)},${y(0).toFixed(1)}`];
+      }
+      out += `<polyline class="curve" points="${pts.join(' ')}"/>`;
     }
-    if (showCurve) out += `<polyline class="curve" points="${pts.join(' ')}"/>`;
-    $('eq').innerHTML = !curveOK ? '' : `<b>Normal curve</b>` +
-      `<div class="formula"><math display="block"><mi>y</mi><mo>=</mo><mi>N</mi><mo>&sdot;</mo>` +
-      `<mfrac><mn>1</mn><mrow><mi>&sigma;</mi><msqrt><mrow><mn>2</mn><mi>&pi;</mi></mrow></msqrt></mrow></mfrac>` +
-      `<msup><mi>e</mi><mrow><mo>&minus;</mo><mfrac><msup><mrow><mo>(</mo><mi>x</mi><mo>&minus;</mo><mi>&mu;</mi><mo>)</mo></mrow><mn>2</mn></msup>` +
-      `<mrow><mn>2</mn><msup><mi>&sigma;</mi><mn>2</mn></msup></mrow></mfrac></mrow></msup></math></div>` +
-      `<dl><dt><i>x</i></dt><dd>a total</dd>` +
-      `<dt><i>y</i></dt><dd>how many rolls</dd>` +
-      `<dt>&mu; = ${mu.toFixed(1)}</dt><dd>average total</dd>` +
-      `<dt>&sigma; = ${sigma.toFixed(2)}</dt><dd>spread</dd>` +
-      `<dt><i>N</i> = ${fmt(s.times)}</dt><dd>rolls</dd></dl>`;
+
+    $('curveLabel').textContent = kind === 'triangular' ? 'Show triangular shape' : 'Show normal curve';
+    $('curveExplain').textContent = kind === 'triangular'
+      ? 'The orange lines are the exact triangular distribution for two dice — the totals rise evenly to a peak at 7, then fall evenly. '
+      : 'The orange curve is the bell curve (normal distribution) with the same average and spread as the dice. ';
+    $('eq').innerHTML =
+      kind === 'normal' ? `<b>Normal curve</b>` +
+        `<div class="formula"><math display="block"><mi>y</mi><mo>=</mo><mi>N</mi><mo>&sdot;</mo>` +
+        `<mfrac><mn>1</mn><mrow><mi>&sigma;</mi><msqrt><mrow><mn>2</mn><mi>&pi;</mi></mrow></msqrt></mrow></mfrac>` +
+        `<msup><mi>e</mi><mrow><mo>&minus;</mo><mfrac><msup><mrow><mo>(</mo><mi>x</mi><mo>&minus;</mo><mi>&mu;</mi><mo>)</mo></mrow><mn>2</mn></msup>` +
+        `<mrow><mn>2</mn><msup><mi>&sigma;</mi><mn>2</mn></msup></mrow></mfrac></mrow></msup></math></div>` +
+        `<dl><dt><i>x</i></dt><dd>a total</dd>` +
+        `<dt><i>y</i></dt><dd>how many rolls</dd>` +
+        `<dt>&mu; = ${mu.toFixed(1)}</dt><dd>average total</dd>` +
+        `<dt>&sigma; = ${sigma.toFixed(2)}</dt><dd>spread</dd>` +
+        `<dt><i>N</i> = ${fmt(s.times)}</dt><dd>rolls</dd></dl>`
+      : kind === 'triangular' ? `<b>Triangular distribution</b>` +
+        `<div class="formula"><math display="block"><mi>y</mi><mo>=</mo><mi>N</mi><mo>&sdot;</mo>` +
+        `<mfrac><mrow><mn>6</mn><mo>&minus;</mo><mo>|</mo><mi>x</mi><mo>&minus;</mo><mi>&mu;</mi><mo>|</mo></mrow><mn>36</mn></mfrac></math></div>` +
+        `<dl><dt><i>x</i></dt><dd>a total (2–12)</dd>` +
+        `<dt><i>y</i></dt><dd>how many rolls</dd>` +
+        `<dt>&mu; = 7</dt><dd>average total</dd>` +
+        `<dt><i>N</i> = ${fmt(s.times)}</dt><dd>rolls</dd></dl>`
+      : '';
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
     svg.setAttribute('height', H);
     svg.innerHTML = out;
