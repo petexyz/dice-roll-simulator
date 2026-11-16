@@ -26,7 +26,7 @@
     padding: 16px; margin-bottom: 16px; }
   form { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; }
   label { display: grid; gap: 4px; font-size: .85rem; color: var(--ink-2); }
-  input[type=number] { width: 9rem; padding: 8px 10px; font: inherit; color: var(--ink);
+  form input { width: 9rem; padding: 8px 10px; font: inherit; color: var(--ink);
     background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
   button { padding: 9px 18px; font: inherit; font-weight: 600; cursor: pointer; border-radius: 8px;
     border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
@@ -81,7 +81,7 @@
         <small id="diceHint">1 to 50</small>
       </label>
       <label>Number of rolls
-        <input id="rolls" type="number" min="1" max="10000000" step="1" value="100" inputmode="numeric" aria-describedby="rollsHint">
+        <input id="rolls" type="text" value="100" inputmode="numeric" autocomplete="off" maxlength="12" aria-describedby="rollsHint">
         <small id="rollsHint">1 to 10,000,000</small>
       </label>
       <button class="primary" type="submit">Roll</button>
@@ -157,7 +157,8 @@
   }
 
   function readInt(el, name, max) {
-    const v = Number(el.value);
+    const raw = el.value.replace(/,/g, '').trim();
+    const v = raw === '' ? NaN : Number(raw);
     if (!Number.isInteger(v) || v < 1 || v > max)
       throw new Error(`${name} must be a whole number from 1 to ${fmt(max)}.`);
     return v;
@@ -256,6 +257,17 @@
     $('tbody').innerHTML = s.counts.map((c, i) =>
       `<tr><td>${i + s.n}</td><td>${fmt(c)}</td><td>${pct(c / s.times)}</td><td>${pct(s.exp[i])}</td></tr>`).join('');
   }
+
+  // Insert thousands separators as the user types, keeping the caret after the same digit.
+  $('rolls').addEventListener('input', e => {
+    const el = e.target;
+    const before = el.value.slice(0, el.selectionStart).replace(/\D/g, '').length;
+    const digits = el.value.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+    el.value = digits.replace(/\B(?=(\d{3})+$)/g, ',');
+    let pos = 0, seen = 0;
+    while (pos < el.value.length && seen < before) if (el.value[pos++] !== ',') seen++;
+    el.setSelectionRange(pos, pos);
+  });
 
   const tip = $('tip');
   $('chart').addEventListener('pointermove', e => {
