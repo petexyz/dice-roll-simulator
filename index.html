@@ -269,7 +269,7 @@
     for (const m of [1, 2, 2.5, 5, 10]) if (m * mag >= v) return m * mag;
   }
 
-  const CURVE_MIN = 4; // fewer dice than this don't approach a normal distribution
+  const CURVE_MIN = 3; // fewer dice than this don't approach a normal distribution
 
   function renderChart(s) {
     const svg = $('chart');
