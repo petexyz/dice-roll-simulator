@@ -7,12 +7,12 @@
 <style>
   :root {
     --bg: #f6f7f9; --surface: #ffffff; --ink: #1c2330; --ink-2: #566072; --line: #dfe3ea;
-    --bar: #2f6fde; --bar-hover: #1f55b8; --accent: #2f6fde;
+    --bar: #2f6fde; --bar-hover: #1f55b8; --accent: #2f6fde; --curve: #d4541c;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #12151b; --surface: #1b2029; --ink: #e8ebf1; --ink-2: #9aa4b5; --line: #2e3542;
-      --bar: #6ea0f5; --bar-hover: #9dc0fa; --accent: #6ea0f5;
+      --bar: #6ea0f5; --bar-hover: #9dc0fa; --accent: #6ea0f5; --curve: #ff9a5c;
     }
   }
   * { box-sizing: border-box; }
@@ -41,6 +41,10 @@
   .legend { display: flex; gap: 16px; font-size: .85rem; color: var(--ink-2); margin-bottom: 4px; }
   .legend i { display: inline-block; vertical-align: middle; margin-right: 6px; }
   .legend .k-bar { width: 12px; height: 12px; border-radius: 3px; background: var(--bar); }
+  .legend { flex-wrap: wrap; }
+  .legend .k-curve { width: 14px; height: 2px; background: var(--curve); }
+  .curve { fill: none; stroke: var(--curve); stroke-width: 2; stroke-linejoin: round; pointer-events: none; }
+  .eq { margin: 4px 0 8px; font-size: .85rem; color: var(--ink-2); font-family: Cambria, Georgia, serif; }
   .legend .k-exp { width: 14px; height: 2px; background: var(--ink); }
   #chartWrap { position: relative; }
   svg { display: block; width: 100%; }
@@ -103,11 +107,14 @@
       <h2 id="chartTitle">Totals</h2>
       <p class="explain">Each bar is a total you could roll. A taller bar means that total came up more often.
         The short dark line on each bar shows how often that total should come up with fair dice.
-        Point at a bar to see its numbers.</p>
+        The orange curve is the bell curve (normal distribution) with the same average and spread
+        as the dice. Point at a bar to see its numbers.</p>
       <div class="legend">
         <span><i class="k-bar"></i>Rolled</span>
         <span><i class="k-exp"></i>Expected on average</span>
+        <span><i class="k-curve"></i>Normal curve</span>
       </div>
+      <p class="eq" id="eq"></p>
       <div id="chartWrap">
         <svg id="chart" role="img" aria-labelledby="chartTitle"></svg>
         <div id="tip"></div>
@@ -211,7 +218,9 @@
     const pw = W - m.l - m.r, ph = H - m.t - m.b;
     const k = s.counts.length;
     const expCounts = s.exp.map(p => p * s.times);
-    const yMax = niceMax(Math.max(...s.counts, ...expCounts));
+    const mu = 3.5 * s.n, sigma = Math.sqrt(s.n * 35 / 12);
+    const normal = x => s.times * Math.exp(-((x - mu) ** 2) / (2 * sigma * sigma)) / (sigma * Math.sqrt(2 * Math.PI));
+    const yMax = niceMax(Math.max(...s.counts, ...expCounts, normal(mu)));
     const y = v => m.t + ph - (v / yMax) * ph;
     const step = pw / k;
     const gap = step > 6 ? 2 : step > 3 ? 1 : 0;
@@ -237,6 +246,16 @@
       if (i % every === 0)
         out += `<text x="${x + bw / 2}" y="${H - 8}" text-anchor="middle">${i + s.n}</text>`;
     }
+    // Normal curve overlay: x runs half a bar past the lowest and highest totals.
+    const pts = [];
+    for (let j = 0; j <= 240; j++) {
+      const t = s.n - 0.5 + (k * j) / 240;
+      pts.push(`${(m.l + (t - s.n + 0.5) * step).toFixed(1)},${y(normal(t)).toFixed(1)}`);
+    }
+    out += `<polyline class="curve" points="${pts.join(' ')}"/>`;
+    $('eq').innerHTML = `Normal curve: <i>y</i> = <i>N</i> &middot; 1 / (&sigma;&radic;(2&pi;)) &middot; ` +
+      `<i>e</i><sup>&minus;(<i>x</i> &minus; &mu;)&sup2; / (2&sigma;&sup2;)</sup>` +
+      `, with &mu; = ${mu.toFixed(1)}, &sigma; = ${sigma.toFixed(2)}, <i>N</i> = ${fmt(s.times)}`;
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
     svg.setAttribute('height', H);
     svg.innerHTML = out;
