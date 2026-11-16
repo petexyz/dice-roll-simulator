@@ -63,6 +63,9 @@
   th, td { text-align: right; padding: 4px 10px; border-bottom: 1px solid var(--line); font-size: .9rem; }
   th { color: var(--ink-2); font-weight: 600; }
   .note { color: var(--ink-2); font-size: .85rem; margin: 8px 0 0; }
+  .explain { color: var(--ink-2); font-size: .9rem; margin: -6px 0 12px; max-width: 65ch; }
+  details .explain { margin: 10px 0 0; }
+  label small { font-size: .78rem; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -74,24 +77,33 @@
   <section class="card">
     <form id="form" novalidate>
       <label>Number of dice
-        <input id="dice" type="number" min="1" max="50" step="1" value="2" inputmode="numeric">
+        <input id="dice" type="number" min="1" max="50" step="1" value="2" inputmode="numeric" aria-describedby="diceHint">
+        <small id="diceHint">1 to 50</small>
       </label>
       <label>Number of rolls
-        <input id="rolls" type="number" min="1" max="1000000" step="1" value="100" inputmode="numeric">
+        <input id="rolls" type="number" min="1" max="1000000" step="1" value="100" inputmode="numeric" aria-describedby="rollsHint">
+        <small id="rollsHint">1 to 1,000,000</small>
       </label>
       <button class="primary" type="submit">Roll</button>
       <button type="button" id="clear">Clear</button>
     </form>
     <p class="error" id="error" role="alert"></p>
+    <p class="note">One roll throws all the dice together and adds up their faces into a total.
+      <b>Roll</b> starts a fresh set of rolls; <b>Clear</b> removes the results.</p>
   </section>
 
   <div id="results" hidden>
     <section class="card">
+      <h2>Summary</h2>
+      <p class="explain">The headline numbers for this set of rolls. The expected average is 3.5 per die.</p>
       <div class="stats" id="stats"></div>
     </section>
 
     <section class="card">
       <h2 id="chartTitle">Totals</h2>
+      <p class="explain">Each bar is one possible total; its height is how many rolls landed on it.
+        The dark line on each bar is how many you would get on average from fair dice, so the bars
+        settle toward the lines as you add rolls. Hover or tap a bar for its numbers.</p>
       <div class="legend">
         <span><i class="k-bar"></i>Rolled</span>
         <span><i class="k-exp"></i>Expected on average</span>
@@ -104,6 +116,8 @@
 
     <section class="card">
       <h2 id="rollsTitle">Individual rolls</h2>
+      <p class="explain">The faces that came up on each roll, in order, followed by their total.
+        Only the first 200 rolls are listed.</p>
       <div class="rolls" id="rollList"></div>
       <p class="note" id="rollNote"></p>
     </section>
@@ -111,6 +125,8 @@
     <section class="card">
       <details>
         <summary>Table of totals</summary>
+        <p class="explain">The chart as numbers: how many rolls gave each total, the share of all
+          rolls that is, and the share fair dice give in the long run.</p>
         <table>
           <thead><tr><th>Total</th><th>Count</th><th>Rolled %</th><th>Expected %</th></tr></thead>
           <tbody id="tbody"></tbody>
