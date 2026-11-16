@@ -44,7 +44,17 @@
   .legend { flex-wrap: wrap; }
   .legend .k-curve { width: 14px; height: 2px; background: var(--curve); }
   .curve { fill: none; stroke: var(--curve); stroke-width: 2; stroke-linejoin: round; pointer-events: none; }
-  .eq { margin: 4px 0 8px; font-size: .85rem; color: var(--ink-2); font-family: Cambria, Georgia, serif; }
+  .chartRow { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+  #chartWrap { flex: 1 1 420px; min-width: 0; }
+  .eq { flex: 0 0 200px; border-left: 3px solid var(--curve); padding: 4px 0 4px 12px; font-size: .85rem; color: var(--ink-2); }
+  .eq .formula { font-family: Cambria, Georgia, "Times New Roman", serif; font-size: 1.15rem; color: var(--ink);
+    display: flex; align-items: center; gap: 5px; margin: 6px 0 10px; white-space: nowrap; }
+  .eq .frac { display: inline-flex; flex-direction: column; text-align: center; font-size: .95em; line-height: 1.25; }
+  .eq .frac span:first-child { border-bottom: 1px solid var(--ink); padding: 0 3px; }
+  .eq sup { font-size: .7em; }
+  .eq dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; margin: 0; }
+  .eq dt { font-family: Cambria, Georgia, serif; color: var(--ink); white-space: nowrap; }
+  .eq dd { margin: 0; }
   .legend .k-exp { width: 14px; height: 2px; background: var(--ink); }
   #chartWrap { position: relative; }
   svg { display: block; width: 100%; }
@@ -114,10 +124,12 @@
         <span><i class="k-exp"></i>Expected on average</span>
         <span><i class="k-curve"></i>Normal curve</span>
       </div>
-      <p class="eq" id="eq"></p>
-      <div id="chartWrap">
-        <svg id="chart" role="img" aria-labelledby="chartTitle"></svg>
-        <div id="tip"></div>
+      <div class="chartRow">
+        <div id="chartWrap">
+          <svg id="chart" role="img" aria-labelledby="chartTitle"></svg>
+          <div id="tip"></div>
+        </div>
+        <aside class="eq" id="eq" aria-label="Normal curve equation"></aside>
       </div>
     </section>
 
@@ -253,9 +265,14 @@
       pts.push(`${(m.l + (t - s.n + 0.5) * step).toFixed(1)},${y(normal(t)).toFixed(1)}`);
     }
     out += `<polyline class="curve" points="${pts.join(' ')}"/>`;
-    $('eq').innerHTML = `Normal curve: <i>y</i> = <i>N</i> &middot; 1 / (&sigma;&radic;(2&pi;)) &middot; ` +
-      `<i>e</i><sup>&minus;(<i>x</i> &minus; &mu;)&sup2; / (2&sigma;&sup2;)</sup>` +
-      `, with &mu; = ${mu.toFixed(1)}, &sigma; = ${sigma.toFixed(2)}, <i>N</i> = ${fmt(s.times)}`;
+    $('eq').innerHTML = `<b>Normal curve</b>` +
+      `<div class="formula"><i>y</i> = <span class="frac"><span><i>N</i></span><span>&sigma;&radic;(2&pi;)</span></span>` +
+      `<span><i>e</i><sup>&minus;(<i>x</i>&minus;&mu;)&sup2; / 2&sigma;&sup2;</sup></span></div>` +
+      `<dl><dt><i>x</i></dt><dd>a total</dd>` +
+      `<dt><i>y</i></dt><dd>how many rolls</dd>` +
+      `<dt>&mu; = ${mu.toFixed(1)}</dt><dd>average total</dd>` +
+      `<dt>&sigma; = ${sigma.toFixed(2)}</dt><dd>spread</dd>` +
+      `<dt><i>N</i> = ${fmt(s.times)}</dt><dd>rolls</dd></dl>`;
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
     svg.setAttribute('height', H);
     svg.innerHTML = out;
