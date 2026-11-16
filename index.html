@@ -44,6 +44,11 @@
   .legend { flex-wrap: wrap; }
   .legend .k-curve { width: 14px; height: 2px; background: var(--curve); }
   .curve { fill: none; stroke: var(--curve); stroke-width: 2; stroke-linejoin: round; pointer-events: none; }
+  .legend { align-items: center; }
+  label.toggle { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: inherit; }
+  label.toggle i { margin-right: 0; }
+  label.toggle input { margin: 0; accent-color: var(--accent); }
+  .no-curve .curve, .no-curve .eq { display: none; }
   .chartRow { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
   #chartWrap { flex: 1 1 420px; min-width: 0; }
   .eq { flex: 0 0 200px; border-left: 3px solid var(--curve); padding: 4px 0 4px 12px; font-size: .85rem; color: var(--ink-2); }
@@ -122,7 +127,7 @@
       <div class="legend">
         <span><i class="k-bar"></i>Rolled</span>
         <span><i class="k-exp"></i>Expected on average</span>
-        <span><i class="k-curve"></i>Normal curve</span>
+        <label class="toggle"><input type="checkbox" id="showCurve" checked><i class="k-curve"></i>Show normal curve</label>
       </div>
       <div class="chartRow">
         <div id="chartWrap">
@@ -232,7 +237,8 @@
     const expCounts = s.exp.map(p => p * s.times);
     const mu = 3.5 * s.n, sigma = Math.sqrt(s.n * 35 / 12);
     const normal = x => s.times * Math.exp(-((x - mu) ** 2) / (2 * sigma * sigma)) / (sigma * Math.sqrt(2 * Math.PI));
-    const yMax = niceMax(Math.max(...s.counts, ...expCounts, normal(mu)));
+    const showCurve = $('showCurve').checked;
+    const yMax = niceMax(Math.max(...s.counts, ...expCounts, showCurve ? normal(mu) : 0));
     const y = v => m.t + ph - (v / yMax) * ph;
     const step = pw / k;
     const gap = step > 6 ? 2 : step > 3 ? 1 : 0;
@@ -303,6 +309,11 @@
     let pos = 0, seen = 0;
     while (pos < el.value.length && seen < before) if (el.value[pos++] !== ',') seen++;
     el.setSelectionRange(pos, pos);
+  });
+
+  $('showCurve').addEventListener('change', e => {
+    $('results').classList.toggle('no-curve', !e.target.checked);
+    if (state) renderChart(state); // the chart widens when the equation panel is hidden
   });
 
   const tip = $('tip');
