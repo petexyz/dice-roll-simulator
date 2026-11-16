@@ -51,9 +51,10 @@
   .no-curve .curve, .no-curve .eq { display: none; }
   .chartRow { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
   #chartWrap { flex: 1 1 420px; min-width: 0; }
-  .eq { flex: 0 0 200px; border-left: 3px solid var(--curve); padding: 4px 0 4px 12px; font-size: .85rem; color: var(--ink-2); }
+  .eq { flex: 0 0 240px; border-left: 3px solid var(--curve); padding: 4px 0 4px 12px; font-size: .85rem; color: var(--ink-2); }
   .eq .formula { font-family: Cambria, Georgia, "Times New Roman", serif; font-size: 1.15rem; color: var(--ink);
-    display: flex; align-items: center; gap: 5px; margin: 6px 0 10px; white-space: nowrap; }
+    margin: 10px 0 14px; white-space: nowrap; }
+  .eq .formula math { font-size: 1.3rem; text-align: left; }
   .eq .frac { display: inline-flex; flex-direction: column; text-align: center; font-size: .95em; line-height: 1.25; }
   .eq .frac span:first-child { border-bottom: 1px solid var(--ink); padding: 0 3px; }
   .eq sup { font-size: .7em; }
@@ -272,8 +273,10 @@
     }
     out += `<polyline class="curve" points="${pts.join(' ')}"/>`;
     $('eq').innerHTML = `<b>Normal curve</b>` +
-      `<div class="formula"><i>y</i> = <span class="frac"><span><i>N</i></span><span>&sigma;&radic;(2&pi;)</span></span>` +
-      `<span><i>e</i><sup>&minus;(<i>x</i>&minus;&mu;)&sup2; / 2&sigma;&sup2;</sup></span></div>` +
+      `<div class="formula"><math display="block"><mi>y</mi><mo>=</mo><mi>N</mi><mo>&sdot;</mo>` +
+      `<mfrac><mn>1</mn><mrow><mi>&sigma;</mi><msqrt><mrow><mn>2</mn><mi>&pi;</mi></mrow></msqrt></mrow></mfrac>` +
+      `<msup><mi>e</mi><mrow><mo>&minus;</mo><mfrac><msup><mrow><mo>(</mo><mi>x</mi><mo>&minus;</mo><mi>&mu;</mi><mo>)</mo></mrow><mn>2</mn></msup>` +
+      `<mrow><mn>2</mn><msup><mi>&sigma;</mi><mn>2</mn></msup></mrow></mfrac></mrow></msup></math></div>` +
       `<dl><dt><i>x</i></dt><dd>a total</dd>` +
       `<dt><i>y</i></dt><dd>how many rolls</dd>` +
       `<dt>&mu; = ${mu.toFixed(1)}</dt><dd>average total</dd>` +
