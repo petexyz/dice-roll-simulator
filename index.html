@@ -113,14 +113,14 @@
   <section class="card">
     <form id="form" novalidate>
       <label>Number of dice
-        <input id="dice" type="number" min="1" max="51" step="1" value="3" inputmode="numeric" aria-describedby="diceHint">
+        <input id="dice" type="number" min="1" max="51" step="1" value="1" inputmode="numeric" aria-describedby="diceHint">
         <small id="diceHint">1 to 51</small>
       </label>
       <label>Number of rolls
         <select id="rolls" aria-describedby="rollsHint">
-          <option value="100">100</option>
+          <option value="100" selected>100</option>
           <option value="1000">1,000</option>
-          <option value="10000" selected>10,000</option>
+          <option value="10000">10,000</option>
           <option value="100000">100,000</option>
           <option value="1000000">1,000,000</option>
           <option value="10000000">10,000,000</option>
