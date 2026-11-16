@@ -65,6 +65,7 @@
   label.toggle i { margin-right: 0; }
   label.toggle input { margin: 0; accent-color: var(--accent); }
   .no-curve .curve, .no-curve .eq { display: none; }
+  .curve-na .curveOnly, .curve-na .toggle, .curve-na .eq { display: none; }
   .chartRow { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
   #chartWrap { flex: 1 1 420px; min-width: 0; }
   .eq { flex: 0 0 240px; border-left: 3px solid var(--curve); padding: 4px 0 4px 12px; font-size: .85rem; color: var(--ink-2); }
@@ -151,8 +152,8 @@
       <h2 id="chartTitle">Totals</h2>
       <p class="explain">Each bar is a total you could roll. A taller bar means that total came up more often.
         The short dark line on each bar shows how often that total should come up with fair dice.
-        The orange curve is the bell curve (normal distribution) with the same average and spread
-        as the dice. Point at a bar to see its numbers.</p>
+        <span class="curveOnly">The orange curve is the bell curve (normal distribution) with the same
+        average and spread as the dice. </span>Point at a bar to see its numbers.</p>
       <div class="legend">
         <span><i class="k-bar"></i>Rolled</span>
         <span><i class="k-exp"></i>Expected on average</span>
@@ -268,8 +269,12 @@
     for (const m of [1, 2, 2.5, 5, 10]) if (m * mag >= v) return m * mag;
   }
 
+  const CURVE_MIN = 3; // fewer dice than this don't approach a normal distribution
+
   function renderChart(s) {
     const svg = $('chart');
+    const curveOK = s.n >= CURVE_MIN;
+    $('results').classList.toggle('curve-na', !curveOK);
     const W = Math.max(280, $('chartWrap').clientWidth), H = 300;
     const m = { t: 12, r: 8, b: 26, l: 44 };
     const pw = W - m.l - m.r, ph = H - m.t - m.b;
@@ -277,7 +282,7 @@
     const expCounts = s.exp.map(p => p * s.times);
     const mu = 3.5 * s.n, sigma = Math.sqrt(s.n * 35 / 12);
     const normal = x => s.times * Math.exp(-((x - mu) ** 2) / (2 * sigma * sigma)) / (sigma * Math.sqrt(2 * Math.PI));
-    const showCurve = $('showCurve').checked;
+    const showCurve = curveOK && $('showCurve').checked;
     const yMax = niceMax(Math.max(...s.counts, ...expCounts, showCurve ? normal(mu) : 0));
     const y = v => m.t + ph - (v / yMax) * ph;
     const step = pw / k;
@@ -310,8 +315,8 @@
       const t = s.n - 0.5 + (k * j) / 240;
       pts.push(`${(m.l + (t - s.n + 0.5) * step).toFixed(1)},${y(normal(t)).toFixed(1)}`);
     }
-    out += `<polyline class="curve" points="${pts.join(' ')}"/>`;
-    $('eq').innerHTML = `<b>Normal curve</b>` +
+    if (showCurve) out += `<polyline class="curve" points="${pts.join(' ')}"/>`;
+    $('eq').innerHTML = !curveOK ? '' : `<b>Normal curve</b>` +
       `<div class="formula"><math display="block"><mi>y</mi><mo>=</mo><mi>N</mi><mo>&sdot;</mo>` +
       `<mfrac><mn>1</mn><mrow><mi>&sigma;</mi><msqrt><mrow><mn>2</mn><mi>&pi;</mi></mrow></msqrt></mrow></mfrac>` +
       `<msup><mi>e</mi><mrow><mo>&minus;</mo><mfrac><msup><mrow><mo>(</mo><mi>x</mi><mo>&minus;</mo><mi>&mu;</mi><mo>)</mo></mrow><mn>2</mn></msup>` +
