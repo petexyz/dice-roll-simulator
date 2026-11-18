@@ -174,11 +174,10 @@
 
     <section class="card">
       <h2 id="qqTitle">Normal quantile plot</h2>
-      <p class="explain">Sort every roll from lowest to highest and split them into ten equal groups (deciles).
-        Each dot is one decile: the total at that point across the bottom, its <b>normal score</b> (z, where it would
-        fall on a perfect bell) up the side. If the rolls follow a normal distribution the dots lie along the straight
-        reference line. With few dice the totals are coarse, so the dots form flat steps that stray from the line
-        &mdash; a single die is a staircase, nothing like normal. As you add dice they settle onto the line.</p>
+      <p class="explain">Each dot is one total that came up: the total across the bottom, its <b>normal score</b>
+        (z &mdash; where that total sits on a perfect bell, given how common it was) up the side. If the rolls follow a
+        normal distribution the dots lie along the straight reference line. Curves and bends away from the line show
+        where the data departs from normal, and the dots settle onto the line as you add dice.</p>
       <div class="legend">
         <span><i class="k-bar"></i>Totals rolled</span>
         <span><i class="k-ref"></i>Normal reference line</span>
@@ -421,19 +420,14 @@
     const m = { t: 14, r: 14, b: 40, l: 46 };
     const pw = W - m.l - m.r, ph = H - m.t - m.b;
 
-    // Split the sorted rolls into deciles and plot one point per decile: the total at the middle of
-    // each tenth against its normal score. Ten points for every scenario, whatever the dice or rolls.
+    // One dot per total that came up, at the normal score of its mid plotting position.
+    // With the total on x this is a proper function: exactly one z for each total.
     const mu = 3.5 * s.n, sigma = Math.sqrt(s.n * 35 / 12);
-    const cumArr = [];
-    let run = 0;
-    for (let i = 0; i < s.counts.length; i++) { run += s.counts[i]; cumArr[i] = run; }
-    const M = 10; // deciles
     const pts = [];
-    let idx = 0;
-    for (let j = 0; j < M; j++) {
-      const f = (j + 0.5) / M, rank = f * s.times;
-      while (idx < cumArr.length - 1 && cumArr[idx] < rank) idx++;
-      pts.push({ total: idx + s.n, z: normInv(f), f });
+    let cum = 0;
+    for (let i = 0; i < s.counts.length; i++) {
+      const c = s.counts[i];
+      if (c) { pts.push({ total: i + s.n, z: normInv((cum + c / 2) / s.times) }); cum += c; }
     }
     const zAbs = Math.max(1, ...pts.map(p => Math.abs(p.z)));
     const zLim = Math.ceil(zAbs * 2) / 2;              // symmetric z-range, rounded to 0.5
@@ -465,9 +459,9 @@
     out += `<line class="qq-ref" x1="${x(mu + sigma * z0).toFixed(1)}" y1="${y(z0).toFixed(1)}" ` +
       `x2="${x(mu + sigma * z1).toFixed(1)}" y2="${y(z1).toFixed(1)}"/>`;
 
-    // One dot per decile.
+    // One dot per total.
     pts.forEach(p => {
-      out += `<circle class="qq-pt" cx="${x(p.total).toFixed(1)}" cy="${y(p.z).toFixed(1)}" r="4.5"/>`;
+      out += `<circle class="qq-pt" cx="${x(p.total).toFixed(1)}" cy="${y(p.z).toFixed(1)}" r="3.6"/>`;
     });
 
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
