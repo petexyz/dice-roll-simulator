@@ -183,8 +183,9 @@
         (z &mdash; where it sits on a perfect bell, given how common it was) up the side. If the rolls follow a normal
         distribution the dots lie along the straight reference line. Curves and bends away from the line show where
         the data departs from normal, and the dots settle onto the line as you add dice. "Each total" plots every
-        total that came up; grouping into quartiles, quintiles or deciles instead gives a fixed number of dots,
-        which can land on the same total when there are only a few possible totals.</p>
+        total that came up; grouping into quartiles, quintiles or deciles instead shows only a sample of them
+        &mdash; never more than one dot per total, so it stays a true function even when a few possible totals
+        cover most of the groups (e.g. 1 or 2 dice).</p>
       <div class="legend">
         <span><i class="k-bar"></i>Totals rolled</span>
         <span><i class="k-ref"></i>Normal reference line</span>
@@ -434,31 +435,38 @@
     const m = { t: 14, r: 14, b: 40, l: 46 };
     const pw = W - m.l - m.r, ph = H - m.t - m.b;
 
-    // "each": one dot per total that came up, at the normal score of its mid plotting position.
-    // Grouped (quartiles/quintiles/deciles): split the sorted rolls into that many equal groups and
-    // plot one dot per group, at the total found at the group's middle rank. Either way, the total is
-    // on x and each total maps to exactly one z, so the plot is a proper function.
+    // Every total that came up gets exactly one normal score, from its own mid plotting position -
+    // this is the function: one z per total, always, whatever the grouping below selects to show.
     const mu = 3.5 * s.n, sigma = Math.sqrt(s.n * 35 / 12);
+    const zOfTotal = new Map(); // total -> z
+    let cum = 0;
+    for (let i = 0; i < s.counts.length; i++) {
+      const c = s.counts[i];
+      if (c) { zOfTotal.set(i + s.n, normInv((cum + c / 2) / s.times)); cum += c; }
+    }
+
+    // "each": show every total. Grouped (quartiles/quintiles/deciles): sample that many equally
+    // spaced ranks to pick which totals to show, then dedupe - two ranks landing on the same total
+    // (common with few possible totals) show as the single dot that total already has above.
     const grouping = $('qqGroup').querySelector('input:checked').value;
-    const pts = [];
+    let totals;
     if (grouping === 'each') {
-      let cum = 0;
-      for (let i = 0; i < s.counts.length; i++) {
-        const c = s.counts[i];
-        if (c) { pts.push({ total: i + s.n, z: normInv((cum + c / 2) / s.times) }); cum += c; }
-      }
+      totals = [...zOfTotal.keys()];
     } else {
       const M = Number(grouping);
       const cumArr = [];
       let run = 0;
       for (let i = 0; i < s.counts.length; i++) { run += s.counts[i]; cumArr[i] = run; }
+      const picked = new Set();
       let idx = 0;
       for (let j = 0; j < M; j++) {
-        const f = (j + 0.5) / M, rank = f * s.times;
+        const rank = (j + 0.5) / M * s.times;
         while (idx < cumArr.length - 1 && cumArr[idx] < rank) idx++;
-        pts.push({ total: idx + s.n, z: normInv(f) });
+        picked.add(idx + s.n);
       }
+      totals = [...picked];
     }
+    const pts = totals.map(total => ({ total, z: zOfTotal.get(total) }));
     const zAbs = Math.max(1, ...pts.map(p => Math.abs(p.z)));
     const zLim = Math.ceil(zAbs * 2) / 2;              // symmetric z-range, rounded to 0.5
     const tLo = s.n, tHi = 6 * s.n, tPad = Math.max(0.5, (tHi - tLo) * 0.04);
