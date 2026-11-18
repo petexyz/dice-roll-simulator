@@ -452,48 +452,48 @@
     const zLim = Math.ceil(zAbs * 2) / 2;              // symmetric z-range, rounded to 0.5
     const tLo = s.n, tHi = 6 * s.n, tPad = Math.max(0.5, (tHi - tLo) * 0.04);
     const tMin = tLo - tPad, tMax = tHi + tPad;
-    const x = z => m.l + (z + zLim) / (2 * zLim) * pw;       // normal score across the bottom
-    const y = t => m.t + ph - (t - tMin) / (tMax - tMin) * ph; // total up the side
+    const x = t => m.l + (t - tMin) / (tMax - tMin) * pw;   // total across the bottom
+    const y = z => m.t + ph - (z + zLim) / (2 * zLim) * ph; // normal score up the side
 
     let out = '';
-    // Vertical grid + x labels at each integer z in range.
-    for (let z = -Math.floor(zLim); z <= Math.floor(zLim); z++) {
-      const xx = x(z);
-      out += `<line class="grid" x1="${xx}" x2="${xx}" y1="${m.t}" y2="${m.t + ph}"/>` +
-        `<text x="${xx}" y="${H - 22}" text-anchor="middle">${z}</text>`;
-    }
-    // Horizontal grid + y labels at nice total steps.
+    // Vertical grid + x labels at nice total steps.
     const tStep = Math.max(1, Math.round((tHi - tLo) / 6));
     for (let t = tLo; t <= tHi; t += tStep) {
-      const yy = y(t);
+      const xx = x(t);
+      out += `<line class="grid" x1="${xx}" x2="${xx}" y1="${m.t}" y2="${m.t + ph}"/>` +
+        `<text x="${xx}" y="${H - 22}" text-anchor="middle">${t}</text>`;
+    }
+    // Horizontal grid + y labels at each integer z in range.
+    for (let z = -Math.floor(zLim); z <= Math.floor(zLim); z++) {
+      const yy = y(z);
       out += `<line class="grid" x1="${m.l}" x2="${W - m.r}" y1="${yy}" y2="${yy}"/>` +
-        `<text x="${m.l - 6}" y="${yy + 4}" text-anchor="end">${t}</text>`;
+        `<text x="${m.l - 6}" y="${yy + 4}" text-anchor="end">${z}</text>`;
     }
     // Axis titles.
-    out += `<text x="${m.l + pw / 2}" y="${H - 4}" text-anchor="middle">Normal score (z)</text>`;
-    out += `<text transform="translate(13 ${m.t + ph / 2}) rotate(-90)" text-anchor="middle">Total</text>`;
+    out += `<text x="${m.l + pw / 2}" y="${H - 4}" text-anchor="middle">Total</text>`;
+    out += `<text transform="translate(13 ${m.t + ph / 2}) rotate(-90)" text-anchor="middle">Normal score (z)</text>`;
 
     // Reference line total = mu + sigma*z, clipped to the drawn total range.
     const z0 = Math.max(-zLim, (tMin - mu) / sigma), z1 = Math.min(zLim, (tMax - mu) / sigma);
-    out += `<line class="qq-ref" x1="${x(z0).toFixed(1)}" y1="${y(mu + sigma * z0).toFixed(1)}" ` +
-      `x2="${x(z1).toFixed(1)}" y2="${y(mu + sigma * z1).toFixed(1)}"/>`;
+    out += `<line class="qq-ref" x1="${x(mu + sigma * z0).toFixed(1)}" y1="${y(z0).toFixed(1)}" ` +
+      `x2="${x(mu + sigma * z1).toFixed(1)}" y2="${y(z1).toFixed(1)}"/>`;
 
     // One dot per total.
     pts.forEach(p => {
-      out += `<circle class="qq-pt" cx="${x(p.z).toFixed(1)}" cy="${y(p.total).toFixed(1)}" r="3.6"/>`;
+      out += `<circle class="qq-pt" cx="${x(p.total).toFixed(1)}" cy="${y(p.z).toFixed(1)}" r="3.6"/>`;
     });
 
-    // Reference line, x (the total, now vertical) as a function of z (now horizontal).
-    // Equivalent slope-intercept form of the line as drawn: m = sigma, b = mu.
-    const qSlope = sigma, qIntercept = mu;
+    // Reference line, as drawn: z (now vertical) as a function of x, the total (now horizontal).
+    // Equivalent slope-intercept form: m = 1/sigma, b = -mu/sigma.
+    const qSlope = 1 / sigma, qIntercept = -mu / sigma;
     $('qqEq').innerHTML = `<b>Reference line</b>` +
       `<div class="formula"><math display="block"><mi>x</mi><mo>=</mo><mi>&mu;</mi><mo>+</mo><mi>&sigma;</mi><mo>&sdot;</mo><mi>z</mi></math></div>` +
       `<dl><dt><i>x</i></dt><dd>a total</dd>` +
       `<dt><i>z</i></dt><dd>normal score</dd>` +
       `<dt>&mu; = ${mu.toFixed(1)}</dt><dd>average total</dd>` +
       `<dt>&sigma; = ${sigma.toFixed(2)}</dt><dd>spread</dd></dl>` +
-      `<p class="qq-slope">As <i>x</i> = <i>mz</i> + <i>b</i> (the line drawn): <i>m</i> = &sigma; = ${qSlope.toFixed(3)}, ` +
-      `<i>b</i> = &mu; = ${qIntercept.toFixed(3)}</p>`;
+      `<p class="qq-slope">As <i>z</i> = <i>mx</i> + <i>b</i> (the line drawn): <i>m</i> = 1/&sigma; = ${qSlope.toFixed(3)}, ` +
+      `<i>b</i> = &minus;&mu;/&sigma; = ${qIntercept.toFixed(3)}</p>`;
 
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
     svg.setAttribute('height', H);
