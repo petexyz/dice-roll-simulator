@@ -175,8 +175,8 @@
     <section class="card">
       <h2 id="qqTitle">Normal quantile plot</h2>
       <p class="explain">Sort every roll from lowest to highest and split them into ten equal groups (deciles).
-        Each dot is one decile: its <b>normal score</b> (z, where it would fall on a perfect bell) across the bottom,
-        the total at that point up the side. If the rolls follow a normal distribution the dots lie along the straight
+        Each dot is one decile: the total at that point across the bottom, its <b>normal score</b> (z, where it would
+        fall on a perfect bell) up the side. If the rolls follow a normal distribution the dots lie along the straight
         reference line. With few dice the totals are coarse, so the dots form flat steps that stray from the line
         &mdash; a single die is a staircase, nothing like normal. As you add dice they settle onto the line.</p>
       <div class="legend">
@@ -436,38 +436,38 @@
       pts.push({ total: idx + s.n, z: normInv(f), f });
     }
     const zAbs = Math.max(1, ...pts.map(p => Math.abs(p.z)));
-    const zLim = Math.ceil(zAbs * 2) / 2;              // symmetric x-range, rounded to 0.5
+    const zLim = Math.ceil(zAbs * 2) / 2;              // symmetric z-range, rounded to 0.5
     const tLo = s.n, tHi = 6 * s.n, tPad = Math.max(0.5, (tHi - tLo) * 0.04);
-    const x = z => m.l + (z + zLim) / (2 * zLim) * pw;
-    const y = t => m.t + ph - (t - (tLo - tPad)) / ((tHi + tPad) - (tLo - tPad)) * ph;
+    const tMin = tLo - tPad, tMax = tHi + tPad;
+    const x = t => m.l + (t - tMin) / (tMax - tMin) * pw;   // totals across the bottom
+    const y = z => m.t + ph - (z + zLim) / (2 * zLim) * ph; // normal score up the side
 
     let out = '';
-    // Vertical grid + x labels at each integer z in range.
-    for (let z = -Math.floor(zLim); z <= Math.floor(zLim); z++) {
-      const xx = x(z);
-      out += `<line class="grid" x1="${xx}" x2="${xx}" y1="${m.t}" y2="${m.t + ph}"/>` +
-        `<text x="${xx}" y="${H - 22}" text-anchor="middle">${z}</text>`;
-    }
-    // Horizontal grid + y labels at nice total steps.
+    // Vertical grid + x labels at nice total steps.
     const tStep = Math.max(1, Math.round((tHi - tLo) / 6));
     for (let t = tLo; t <= tHi; t += tStep) {
-      const yy = y(t);
+      const xx = x(t);
+      out += `<line class="grid" x1="${xx}" x2="${xx}" y1="${m.t}" y2="${m.t + ph}"/>` +
+        `<text x="${xx}" y="${H - 22}" text-anchor="middle">${t}</text>`;
+    }
+    // Horizontal grid + y labels at each integer z in range.
+    for (let z = -Math.floor(zLim); z <= Math.floor(zLim); z++) {
+      const yy = y(z);
       out += `<line class="grid" x1="${m.l}" x2="${W - m.r}" y1="${yy}" y2="${yy}"/>` +
-        `<text x="${m.l - 6}" y="${yy + 4}" text-anchor="end">${t}</text>`;
+        `<text x="${m.l - 6}" y="${yy + 4}" text-anchor="end">${z}</text>`;
     }
     // Axis titles.
-    out += `<text x="${m.l + pw / 2}" y="${H - 4}" text-anchor="middle">Normal score (z)</text>`;
-    out += `<text transform="translate(13 ${m.t + ph / 2}) rotate(-90)" text-anchor="middle">Total</text>`;
+    out += `<text x="${m.l + pw / 2}" y="${H - 4}" text-anchor="middle">Total</text>`;
+    out += `<text transform="translate(13 ${m.t + ph / 2}) rotate(-90)" text-anchor="middle">Normal score (z)</text>`;
 
     // Reference line total = mu + sigma*z, clipped to the drawn total range.
-    const tMin = tLo - tPad, tMax = tHi + tPad;
     const z0 = Math.max(-zLim, (tMin - mu) / sigma), z1 = Math.min(zLim, (tMax - mu) / sigma);
-    out += `<line class="qq-ref" x1="${x(z0).toFixed(1)}" y1="${y(mu + sigma * z0).toFixed(1)}" ` +
-      `x2="${x(z1).toFixed(1)}" y2="${y(mu + sigma * z1).toFixed(1)}"/>`;
+    out += `<line class="qq-ref" x1="${x(mu + sigma * z0).toFixed(1)}" y1="${y(z0).toFixed(1)}" ` +
+      `x2="${x(mu + sigma * z1).toFixed(1)}" y2="${y(z1).toFixed(1)}"/>`;
 
     // One dot per decile.
     pts.forEach(p => {
-      out += `<circle class="qq-pt" cx="${x(p.z).toFixed(1)}" cy="${y(p.total).toFixed(1)}" r="4.5"/>`;
+      out += `<circle class="qq-pt" cx="${x(p.total).toFixed(1)}" cy="${y(p.z).toFixed(1)}" r="4.5"/>`;
     });
 
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
