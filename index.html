@@ -91,9 +91,9 @@
   .legend .k-ref { width: 16px; height: 0; border-top: 2px dashed var(--ink-2); }
   #qqWrap { position: relative; }
   .qq-ref { stroke: var(--ink-2); stroke-width: 2; stroke-dasharray: 5 4; pointer-events: none; }
-  .qq-pt { fill: var(--bar); stroke: var(--surface); stroke-width: 1; pointer-events: none; }
-  .qq-hit { fill: transparent; cursor: pointer; }
-  .qq-focus { fill: var(--bar-hover); stroke: var(--surface); stroke-width: 1.5; pointer-events: none; display: none; }
+  .qq-seg { stroke: var(--bar); stroke-width: 4; stroke-linecap: round; pointer-events: none; }
+  .qq-hit { stroke: transparent; stroke-width: 16; stroke-linecap: round; fill: none; cursor: pointer; }
+  .qq-focus { stroke: var(--bar-hover); stroke-width: 6; stroke-linecap: round; pointer-events: none; display: none; }
   .tip { position: absolute; pointer-events: none; display: none; z-index: 2; white-space: nowrap;
     background: var(--ink); color: var(--surface); font-size: .8rem; line-height: 1.4;
     padding: 6px 9px; border-radius: 6px; transform: translate(-50%, -100%); }
@@ -176,11 +176,12 @@
 
     <section class="card">
       <h2 id="qqTitle">Normal quantile plot</h2>
-      <p class="explain">Each dot is one total. Its left-right position is the <b>normal score</b> (z) you would
-        expect for a total that common, and its height is the total itself. If the rolls follow a normal
-        distribution, the dots line up along the straight reference line. Bends, S-shapes or a staircase mean
-        the data is not normal &mdash; expected with only one or two dice, and straightening out as you add more.
-        Point at a dot for its numbers.</p>
+      <p class="explain">Sort every roll from lowest to highest and give each one a <b>normal score</b> (z) &mdash; where
+        it would fall if the data were a perfect bell. Each horizontal bar is one total, stretched across all the
+        rolls that landed on it; its height is the total. If the rolls follow a normal distribution the bars sit
+        along the straight reference line. With few dice each total covers many rolls, so the bars become long flat
+        steps that stray from the line &mdash; a single die is a coarse staircase, nothing like normal. As you add
+        dice the steps shrink toward the line. Point at a bar for its numbers.</p>
       <div class="legend">
         <span><i class="k-bar"></i>Totals rolled</span>
         <span><i class="k-ref"></i>Normal reference line</span>
@@ -424,15 +425,21 @@
     const m = { t: 14, r: 14, b: 40, l: 46 };
     const pw = W - m.l - m.r, ph = H - m.t - m.b;
 
-    // One point per total that actually came up, at its continuity-corrected plotting position.
+    // Each total occupies a run of consecutive rolls when sorted; draw that run as a horizontal
+    // segment spanning the normal scores of its order statistics. A single roll draws as a dot.
     const mu = 3.5 * s.n, sigma = Math.sqrt(s.n * 35 / 12);
     const pts = [];
     let cum = 0;
     for (let i = 0; i < s.counts.length; i++) {
       const c = s.counts[i];
-      if (c) { pts.push({ total: i + s.n, c, z: normInv((cum + c / 2) / s.times) }); cum += c; }
+      if (c) {
+        pts.push({ total: i + s.n, c,
+          zStart: normInv((cum + 0.5) / s.times),
+          zEnd: normInv((cum + c - 0.5) / s.times) });
+        cum += c;
+      }
     }
-    const zAbs = Math.max(1, ...pts.map(p => Math.abs(p.z)));
+    const zAbs = Math.max(1, ...pts.flatMap(p => [Math.abs(p.zStart), Math.abs(p.zEnd)]));
     const zLim = Math.ceil(zAbs * 2) / 2;              // symmetric x-range, rounded to 0.5
     const tLo = s.n, tHi = 6 * s.n, tPad = Math.max(0.5, (tHi - tLo) * 0.04);
     const x = z => m.l + (z + zLim) / (2 * zLim) * pw;
@@ -463,13 +470,13 @@
     out += `<line class="qq-ref" x1="${x(z0).toFixed(1)}" y1="${y(mu + sigma * z0).toFixed(1)}" ` +
       `x2="${x(z1).toFixed(1)}" y2="${y(mu + sigma * z1).toFixed(1)}"/>`;
 
-    // Points, each with an invisible hit target for hover.
+    // One segment per total (dot when a single roll), each with an invisible hit target for hover.
     pts.forEach((p, i) => {
-      const px = x(p.z).toFixed(1), py = y(p.total).toFixed(1);
-      out += `<circle class="qq-hit" data-i="${i}" cx="${px}" cy="${py}" r="11"/>` +
-        `<circle class="qq-pt" cx="${px}" cy="${py}" r="3.6"/>`;
+      const xa = x(p.zStart).toFixed(1), xb = x(p.zEnd).toFixed(1), py = y(p.total).toFixed(1);
+      out += `<line class="qq-hit" data-i="${i}" x1="${xa}" y1="${py}" x2="${xb}" y2="${py}"/>` +
+        `<line class="qq-seg" x1="${xa}" y1="${py}" x2="${xb}" y2="${py}"/>`;
     });
-    out += `<circle class="qq-focus" id="qqFocus" r="5"/>`;
+    out += `<line class="qq-focus" id="qqFocus"/>`;
 
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
     svg.setAttribute('height', H);
@@ -505,13 +512,14 @@
     const t = e.target.closest('.qq-hit');
     if (!t || !state || !state.qq) return hideQQTip();
     const p = state.qq.pts[+t.dataset.i];
-    const focus = $('qqFocus');
-    focus.setAttribute('cx', state.qq.x(p.z).toFixed(1));
-    focus.setAttribute('cy', state.qq.y(p.total).toFixed(1));
+    const focus = $('qqFocus'), qy = state.qq.y(p.total).toFixed(1);
+    focus.setAttribute('x1', state.qq.x(p.zStart).toFixed(1));
+    focus.setAttribute('x2', state.qq.x(p.zEnd).toFixed(1));
+    focus.setAttribute('y1', qy); focus.setAttribute('y2', qy);
     focus.style.display = 'block';
     const wrap = $('qqWrap').getBoundingClientRect(), box = t.getBoundingClientRect();
     qqTip.innerHTML = `<b>Total ${p.total}</b><br>Rolled ${fmt(p.c)} time${p.c === 1 ? '' : 's'} (${pct(p.c / state.times)})` +
-      `<br>Normal score z = ${p.z.toFixed(2)}`;
+      `<br>Normal score z ${p.c === 1 ? `= ${p.zStart.toFixed(2)}` : `from ${p.zStart.toFixed(2)} to ${p.zEnd.toFixed(2)}`}`;
     qqTip.style.display = 'block';
     const half = qqTip.offsetWidth / 2;
     const cx = box.left - wrap.left + box.width / 2;
