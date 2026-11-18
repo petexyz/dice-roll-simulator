@@ -483,15 +483,16 @@
       out += `<circle class="qq-pt" cx="${x(p.total).toFixed(1)}" cy="${y(p.z).toFixed(1)}" r="3.6"/>`;
     });
 
-    // Reference line in slope-intercept form, z = m*x + b, with m and b from mu and sigma.
+    // Reference line, solved for x (a total) at z standard deviations from the mean.
+    // Equivalent slope-intercept form for the plotted z = f(x) is m = 1/sigma, b = -mu/sigma.
     const qSlope = 1 / sigma, qIntercept = -mu / sigma;
     $('qqEq').innerHTML = `<b>Reference line</b>` +
-      `<div class="formula"><math display="block"><mi>z</mi><mo>=</mo><mfrac><mrow><mi>x</mi><mo>&minus;</mo><mi>&mu;</mi></mrow><mi>&sigma;</mi></mfrac></math></div>` +
-      `<dl><dt><i>z</i></dt><dd>normal score</dd>` +
-      `<dt><i>x</i></dt><dd>a total</dd>` +
+      `<div class="formula"><math display="block"><mi>x</mi><mo>=</mo><mi>&mu;</mi><mo>+</mo><mi>&sigma;</mi><mo>&sdot;</mo><mi>z</mi></math></div>` +
+      `<dl><dt><i>x</i></dt><dd>a total</dd>` +
+      `<dt><i>z</i></dt><dd>normal score</dd>` +
       `<dt>&mu; = ${mu.toFixed(1)}</dt><dd>average total</dd>` +
       `<dt>&sigma; = ${sigma.toFixed(2)}</dt><dd>spread</dd></dl>` +
-      `<p class="qq-slope">As <i>z</i> = <i>mx</i> + <i>b</i>: <i>m</i> = 1/&sigma; = ${qSlope.toFixed(3)}, ` +
+      `<p class="qq-slope">As <i>z</i> = <i>mx</i> + <i>b</i> (the line drawn): <i>m</i> = 1/&sigma; = ${qSlope.toFixed(3)}, ` +
       `<i>b</i> = &minus;&mu;/&sigma; = ${qIntercept.toFixed(3)}</p>`;
 
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
