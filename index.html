@@ -88,7 +88,13 @@
   .hit { fill: transparent; }
   .hit:hover + .bar, .bar.on { fill: var(--bar-hover); }
   .exp { stroke: var(--ink); stroke-width: 2; stroke-linecap: round; }
-  #tip { position: absolute; pointer-events: none; display: none; z-index: 2; white-space: nowrap;
+  .legend .k-ref { width: 16px; height: 0; border-top: 2px dashed var(--ink-2); }
+  #qqWrap { position: relative; }
+  .qq-ref { stroke: var(--ink-2); stroke-width: 2; stroke-dasharray: 5 4; pointer-events: none; }
+  .qq-pt { fill: var(--bar); stroke: var(--surface); stroke-width: 1; pointer-events: none; }
+  .qq-hit { fill: transparent; cursor: pointer; }
+  .qq-focus { fill: var(--bar-hover); stroke: var(--surface); stroke-width: 1.5; pointer-events: none; display: none; }
+  .tip { position: absolute; pointer-events: none; display: none; z-index: 2; white-space: nowrap;
     background: var(--ink); color: var(--surface); font-size: .8rem; line-height: 1.4;
     padding: 6px 9px; border-radius: 6px; transform: translate(-50%, -100%); }
   .rolls { display: flex; flex-wrap: wrap; gap: 8px; max-height: 260px; overflow: auto; }
@@ -162,9 +168,26 @@
       <div class="chartRow">
         <div id="chartWrap">
           <svg id="chart" role="img" aria-labelledby="chartTitle"></svg>
-          <div id="tip"></div>
+          <div id="tip" class="tip"></div>
         </div>
         <aside class="eq" id="eq" aria-label="Normal curve equation"></aside>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 id="qqTitle">Normal quantile plot</h2>
+      <p class="explain">Each dot is one total. Its left-right position is the <b>normal score</b> (z) you would
+        expect for a total that common, and its height is the total itself. If the rolls follow a normal
+        distribution, the dots line up along the straight reference line. Bends, S-shapes or a staircase mean
+        the data is not normal &mdash; expected with only one or two dice, and straightening out as you add more.
+        Point at a dot for its numbers.</p>
+      <div class="legend">
+        <span><i class="k-bar"></i>Totals rolled</span>
+        <span><i class="k-ref"></i>Normal reference line</span>
+      </div>
+      <div id="qqWrap">
+        <svg id="qq" role="img" aria-labelledby="qqTitle"></svg>
+        <div id="qqTip" class="tip"></div>
       </div>
     </section>
 
@@ -375,6 +398,86 @@
       `<tr><td>${i + s.n}</td><td>${fmt(c)}</td><td>${pct(c / s.times)}</td><td>${pct(s.exp[i])}</td></tr>`).join('');
   }
 
+  // Inverse standard-normal CDF (Acklam's rational approximation), good to ~1e-9.
+  function normInv(p) {
+    const a = [-3.969683028665376e+1, 2.209460984245205e+2, -2.759285104469687e+2, 1.383577518672690e+2, -3.066479806614716e+1, 2.506628277459239e+0];
+    const b = [-5.447609879822406e+1, 1.615858368580409e+2, -1.556989798598866e+2, 6.680131188771972e+1, -1.328068155288572e+1];
+    const c = [-7.784894002430293e-3, -3.223964580411365e-1, -2.400758277161838e+0, -2.549732539343734e+0, 4.374664141464968e+0, 2.938163982698783e+0];
+    const d = [7.784695709041462e-3, 3.224671290700398e-1, 2.445134137142996e+0, 3.754408661907416e+0];
+    const pl = 0.02425;
+    let q, r;
+    if (p < pl) {
+      q = Math.sqrt(-2 * Math.log(p));
+      return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+    }
+    if (p <= 1 - pl) {
+      q = p - 0.5; r = q * q;
+      return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+    }
+    q = Math.sqrt(-2 * Math.log(1 - p));
+    return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+  }
+
+  function renderQQ(s) {
+    const svg = $('qq');
+    const W = Math.max(280, $('qqWrap').clientWidth), H = 320;
+    const m = { t: 14, r: 14, b: 40, l: 46 };
+    const pw = W - m.l - m.r, ph = H - m.t - m.b;
+
+    // One point per total that actually came up, at its continuity-corrected plotting position.
+    const mu = 3.5 * s.n, sigma = Math.sqrt(s.n * 35 / 12);
+    const pts = [];
+    let cum = 0;
+    for (let i = 0; i < s.counts.length; i++) {
+      const c = s.counts[i];
+      if (c) { pts.push({ total: i + s.n, c, z: normInv((cum + c / 2) / s.times) }); cum += c; }
+    }
+    const zAbs = Math.max(1, ...pts.map(p => Math.abs(p.z)));
+    const zLim = Math.ceil(zAbs * 2) / 2;              // symmetric x-range, rounded to 0.5
+    const tLo = s.n, tHi = 6 * s.n, tPad = Math.max(0.5, (tHi - tLo) * 0.04);
+    const x = z => m.l + (z + zLim) / (2 * zLim) * pw;
+    const y = t => m.t + ph - (t - (tLo - tPad)) / ((tHi + tPad) - (tLo - tPad)) * ph;
+    state.qq = { pts, x, y, box: { l: m.l, r: W - m.r, t: m.t, b: m.t + ph } };
+
+    let out = '';
+    // Vertical grid + x labels at each integer z in range.
+    for (let z = -Math.floor(zLim); z <= Math.floor(zLim); z++) {
+      const xx = x(z);
+      out += `<line class="grid" x1="${xx}" x2="${xx}" y1="${m.t}" y2="${m.t + ph}"/>` +
+        `<text x="${xx}" y="${H - 22}" text-anchor="middle">${z}</text>`;
+    }
+    // Horizontal grid + y labels at nice total steps.
+    const tStep = Math.max(1, Math.round((tHi - tLo) / 6));
+    for (let t = tLo; t <= tHi; t += tStep) {
+      const yy = y(t);
+      out += `<line class="grid" x1="${m.l}" x2="${W - m.r}" y1="${yy}" y2="${yy}"/>` +
+        `<text x="${m.l - 6}" y="${yy + 4}" text-anchor="end">${t}</text>`;
+    }
+    // Axis titles.
+    out += `<text x="${m.l + pw / 2}" y="${H - 4}" text-anchor="middle">Normal score (z)</text>`;
+    out += `<text transform="translate(13 ${m.t + ph / 2}) rotate(-90)" text-anchor="middle">Total</text>`;
+
+    // Reference line total = mu + sigma*z, clipped to the drawn total range.
+    const tMin = tLo - tPad, tMax = tHi + tPad;
+    const z0 = Math.max(-zLim, (tMin - mu) / sigma), z1 = Math.min(zLim, (tMax - mu) / sigma);
+    out += `<line class="qq-ref" x1="${x(z0).toFixed(1)}" y1="${y(mu + sigma * z0).toFixed(1)}" ` +
+      `x2="${x(z1).toFixed(1)}" y2="${y(mu + sigma * z1).toFixed(1)}"/>`;
+
+    // Points, each with an invisible hit target for hover.
+    pts.forEach((p, i) => {
+      const px = x(p.z).toFixed(1), py = y(p.total).toFixed(1);
+      out += `<circle class="qq-hit" data-i="${i}" cx="${px}" cy="${py}" r="11"/>` +
+        `<circle class="qq-pt" cx="${px}" cy="${py}" r="3.6"/>`;
+    });
+    out += `<circle class="qq-focus" id="qqFocus" r="5"/>`;
+
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('height', H);
+    svg.innerHTML = out;
+    $('qqTitle').textContent =
+      `Normal quantile plot — ${s.n} ${s.n === 1 ? 'die' : 'dice'}, ${fmt(s.times)} ${s.times === 1 ? 'roll' : 'rolls'}`;
+  }
+
   $('showCurve').addEventListener('change', e => {
     $('results').classList.toggle('no-curve', !e.target.checked);
     if (state) renderChart(state); // the chart widens when the equation panel is hidden
@@ -396,6 +499,27 @@
   });
   const hideTip = () => { tip.style.display = 'none'; };
   $('chart').addEventListener('pointerleave', hideTip);
+
+  const qqTip = $('qqTip');
+  $('qq').addEventListener('pointermove', e => {
+    const t = e.target.closest('.qq-hit');
+    if (!t || !state || !state.qq) return hideQQTip();
+    const p = state.qq.pts[+t.dataset.i];
+    const focus = $('qqFocus');
+    focus.setAttribute('cx', state.qq.x(p.z).toFixed(1));
+    focus.setAttribute('cy', state.qq.y(p.total).toFixed(1));
+    focus.style.display = 'block';
+    const wrap = $('qqWrap').getBoundingClientRect(), box = t.getBoundingClientRect();
+    qqTip.innerHTML = `<b>Total ${p.total}</b><br>Rolled ${fmt(p.c)} time${p.c === 1 ? '' : 's'} (${pct(p.c / state.times)})` +
+      `<br>Normal score z = ${p.z.toFixed(2)}`;
+    qqTip.style.display = 'block';
+    const half = qqTip.offsetWidth / 2;
+    const cx = box.left - wrap.left + box.width / 2;
+    qqTip.style.left = Math.min(Math.max(cx, half), wrap.width - half) + 'px';
+    qqTip.style.top = Math.max(box.top - wrap.top + box.height / 2 - 10, qqTip.offsetHeight) + 'px';
+  });
+  const hideQQTip = () => { qqTip.style.display = 'none'; const f = $('qqFocus'); if (f) f.style.display = 'none'; };
+  $('qq').addEventListener('pointerleave', hideQQTip);
 
   // kind: 'ready' | 'working' | 'done' | 'error'; progress is 0..1 while working.
   function setStatus(kind, text, progress) {
@@ -442,7 +566,7 @@
     if (me !== run) return;
     state = result;
     $('results').hidden = false;
-    renderStats(state); renderChart(state); renderRolls(state); renderTable(state);
+    renderStats(state); renderChart(state); renderQQ(state); renderRolls(state); renderTable(state);
     $('rollBtn').disabled = false;
     const secs = (performance.now() - started) / 1000;
     setStatus('done', `Rolled ${what} in ${secs < 10 ? secs.toFixed(2) : secs.toFixed(1)} seconds.`);
@@ -456,10 +580,10 @@
     $('rollBtn').disabled = false;
     setStatus('ready', wasRolling ? 'Rolling stopped. Choose your dice and press Roll.'
       : 'Results cleared. Choose your dice and press Roll.');
-    hideTip();
+    hideTip(); hideQQTip();
   });
 
-  window.addEventListener('resize', () => { if (state) renderChart(state); });
+  window.addEventListener('resize', () => { if (state) { renderChart(state); renderQQ(state); } });
 })();
 </script>
 </body>
