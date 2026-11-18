@@ -174,11 +174,11 @@
 
     <section class="card">
       <h2 id="qqTitle">Normal quantile plot</h2>
-      <p class="explain">Sort every roll from lowest to highest and give each one a <b>normal score</b> (z) &mdash; where
-        it would fall if the data were a perfect bell. Each dot is a roll: its score across the bottom, its total up
-        the side. If the rolls follow a normal distribution the dots lie along the straight reference line. With few
-        dice the totals are coarse, so the dots form flat rows that stray from the line &mdash; a single die is a
-        staircase, nothing like normal. As you add dice the rows blend into the line.</p>
+      <p class="explain">Sort every roll from lowest to highest and split them into ten equal groups (deciles).
+        Each dot is one decile: its <b>normal score</b> (z, where it would fall on a perfect bell) across the bottom,
+        the total at that point up the side. If the rolls follow a normal distribution the dots lie along the straight
+        reference line. With few dice the totals are coarse, so the dots form flat steps that stray from the line
+        &mdash; a single die is a staircase, nothing like normal. As you add dice they settle onto the line.</p>
       <div class="legend">
         <span><i class="k-bar"></i>Totals rolled</span>
         <span><i class="k-ref"></i>Normal reference line</span>
@@ -421,14 +421,13 @@
     const m = { t: 14, r: 14, b: 40, l: 46 };
     const pw = W - m.l - m.r, ph = H - m.t - m.b;
 
-    // Plot the sorted rolls themselves as points: for evenly spaced ranks, the total at that rank
-    // against its normal score. Sampled to a few hundred points so it scales to millions of rolls.
-    // Discrete data (few dice) then shows as flat rows of dots - a staircase, not a line.
+    // Split the sorted rolls into deciles and plot one point per decile: the total at the middle of
+    // each tenth against its normal score. Ten points for every scenario, whatever the dice or rolls.
     const mu = 3.5 * s.n, sigma = Math.sqrt(s.n * 35 / 12);
     const cumArr = [];
     let run = 0;
     for (let i = 0; i < s.counts.length; i++) { run += s.counts[i]; cumArr[i] = run; }
-    const M = Math.min(s.times, 300); // plotting resolution, independent of the dice
+    const M = 10; // deciles
     const pts = [];
     let idx = 0;
     for (let j = 0; j < M; j++) {
@@ -466,9 +465,9 @@
     out += `<line class="qq-ref" x1="${x(z0).toFixed(1)}" y1="${y(mu + sigma * z0).toFixed(1)}" ` +
       `x2="${x(z1).toFixed(1)}" y2="${y(mu + sigma * z1).toFixed(1)}"/>`;
 
-    // One dot per sampled roll, drawn as a point.
+    // One dot per decile.
     pts.forEach(p => {
-      out += `<circle class="qq-pt" cx="${x(p.z).toFixed(1)}" cy="${y(p.total).toFixed(1)}" r="2.6"/>`;
+      out += `<circle class="qq-pt" cx="${x(p.z).toFixed(1)}" cy="${y(p.total).toFixed(1)}" r="4.5"/>`;
     });
 
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
