@@ -174,19 +174,23 @@
       </div>
     </section>
 
-    <section class="card">
+    <section class="card" id="qqSection">
       <h2 id="qqTitle">Normal quantile plot</h2>
       <p class="explain">Each dot plots a total against its <b>normal score</b> (z). Straight dots on the dashed line
         mean normal; bends mean not.</p>
-      <div class="legend">
-        <span><i class="k-bar"></i>Totals rolled</span>
-        <span><i class="k-ref"></i>Normal reference line</span>
-      </div>
-      <div class="chartRow">
-        <div id="qqWrap">
-          <svg id="qq" role="img" aria-labelledby="qqTitle"></svg>
+      <p class="explain" id="qqUnavailable" hidden>With only a few possible totals, this plot has too few points
+        to be meaningful &mdash; add more dice to see it.</p>
+      <div id="qqBody">
+        <div class="legend">
+          <span><i class="k-bar"></i>Totals rolled</span>
+          <span><i class="k-ref"></i>Normal reference line</span>
         </div>
-        <aside class="eqbox qq-eq" id="qqEq" aria-label="Reference line equation"></aside>
+        <div class="chartRow">
+          <div id="qqWrap">
+            <svg id="qq" role="img" aria-labelledby="qqTitle"></svg>
+          </div>
+          <aside class="eqbox qq-eq" id="qqEq" aria-label="Reference line equation"></aside>
+        </div>
       </div>
     </section>
 
@@ -418,6 +422,12 @@
   }
 
   function renderQQ(s) {
+    // Too few possible totals (1-2 dice) for the plot to say anything meaningful.
+    const show = s.n >= CURVE_MIN;
+    $('qqBody').hidden = !show;
+    $('qqUnavailable').hidden = show;
+    if (!show) return;
+
     const svg = $('qq');
     const W = Math.max(280, $('qqWrap').clientWidth), H = 320;
     const m = { t: 14, r: 14, b: 40, l: 46 };
