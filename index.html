@@ -65,6 +65,11 @@
   label.toggle { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: inherit; }
   label.toggle i { margin-right: 0; }
   label.toggle input { margin: 0; accent-color: var(--accent); }
+  .qqGroup { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; border: none;
+    margin: 0 0 12px; padding: 0; font-size: .9rem; }
+  .qqGroup legend { padding: 0; margin-right: -2px; font-size: .85rem; color: var(--ink-2); }
+  .qqGroup label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+  .qqGroup input { margin: 0; accent-color: var(--accent); }
   .no-curve .curve, .no-curve .eq { display: none; }
   .curve-na .curveOnly, .curve-na .toggle, .curve-na .eq { display: none; }
   .chartRow { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
@@ -174,14 +179,23 @@
 
     <section class="card">
       <h2 id="qqTitle">Normal quantile plot</h2>
-      <p class="explain">Each dot is one total that came up: the total across the bottom, its <b>normal score</b>
-        (z &mdash; where that total sits on a perfect bell, given how common it was) up the side. If the rolls follow a
-        normal distribution the dots lie along the straight reference line. Curves and bends away from the line show
-        where the data departs from normal, and the dots settle onto the line as you add dice.</p>
+      <p class="explain">Each dot is one total or group of rolls: its total across the bottom, its <b>normal score</b>
+        (z &mdash; where it sits on a perfect bell, given how common it was) up the side. If the rolls follow a normal
+        distribution the dots lie along the straight reference line. Curves and bends away from the line show where
+        the data departs from normal, and the dots settle onto the line as you add dice. "Each total" plots every
+        total that came up; grouping into quartiles, quintiles or deciles instead gives a fixed number of dots,
+        which can land on the same total when there are only a few possible totals.</p>
       <div class="legend">
         <span><i class="k-bar"></i>Totals rolled</span>
         <span><i class="k-ref"></i>Normal reference line</span>
       </div>
+      <fieldset class="qqGroup" id="qqGroup">
+        <legend>Group the rolls into</legend>
+        <label><input type="radio" name="qqGroup" value="each" checked>Each total</label>
+        <label><input type="radio" name="qqGroup" value="4">Quartiles (4)</label>
+        <label><input type="radio" name="qqGroup" value="5">Quintiles (5)</label>
+        <label><input type="radio" name="qqGroup" value="10">Deciles (10)</label>
+      </fieldset>
       <div id="qqWrap">
         <svg id="qq" role="img" aria-labelledby="qqTitle"></svg>
       </div>
@@ -420,14 +434,30 @@
     const m = { t: 14, r: 14, b: 40, l: 46 };
     const pw = W - m.l - m.r, ph = H - m.t - m.b;
 
-    // One dot per total that came up, at the normal score of its mid plotting position.
-    // With the total on x this is a proper function: exactly one z for each total.
+    // "each": one dot per total that came up, at the normal score of its mid plotting position.
+    // Grouped (quartiles/quintiles/deciles): split the sorted rolls into that many equal groups and
+    // plot one dot per group, at the total found at the group's middle rank. Either way, the total is
+    // on x and each total maps to exactly one z, so the plot is a proper function.
     const mu = 3.5 * s.n, sigma = Math.sqrt(s.n * 35 / 12);
+    const grouping = $('qqGroup').querySelector('input:checked').value;
     const pts = [];
-    let cum = 0;
-    for (let i = 0; i < s.counts.length; i++) {
-      const c = s.counts[i];
-      if (c) { pts.push({ total: i + s.n, z: normInv((cum + c / 2) / s.times) }); cum += c; }
+    if (grouping === 'each') {
+      let cum = 0;
+      for (let i = 0; i < s.counts.length; i++) {
+        const c = s.counts[i];
+        if (c) { pts.push({ total: i + s.n, z: normInv((cum + c / 2) / s.times) }); cum += c; }
+      }
+    } else {
+      const M = Number(grouping);
+      const cumArr = [];
+      let run = 0;
+      for (let i = 0; i < s.counts.length; i++) { run += s.counts[i]; cumArr[i] = run; }
+      let idx = 0;
+      for (let j = 0; j < M; j++) {
+        const f = (j + 0.5) / M, rank = f * s.times;
+        while (idx < cumArr.length - 1 && cumArr[idx] < rank) idx++;
+        pts.push({ total: idx + s.n, z: normInv(f) });
+      }
     }
     const zAbs = Math.max(1, ...pts.map(p => Math.abs(p.z)));
     const zLim = Math.ceil(zAbs * 2) / 2;              // symmetric z-range, rounded to 0.5
@@ -475,6 +505,8 @@
     $('results').classList.toggle('no-curve', !e.target.checked);
     if (state) renderChart(state); // the chart widens when the equation panel is hidden
   });
+
+  $('qqGroup').addEventListener('change', () => { if (state) renderQQ(state); });
 
   const tip = $('tip');
   $('chart').addEventListener('pointermove', e => {
