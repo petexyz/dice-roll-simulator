@@ -74,16 +74,16 @@
   .curve-na .curveOnly, .curve-na .toggle, .curve-na .eq { display: none; }
   .chartRow { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
   #chartWrap { flex: 1 1 420px; min-width: 0; }
-  .eq { flex: 0 0 240px; border-left: 3px solid var(--curve); padding: 4px 0 4px 12px; font-size: .85rem; color: var(--ink-2); }
-  .eq .formula { font-family: Cambria, Georgia, "Times New Roman", serif; font-size: 1.15rem; color: var(--ink);
+  .eqbox { flex: 0 0 240px; border-left: 3px solid var(--curve); padding: 4px 0 4px 12px; font-size: .85rem; color: var(--ink-2); }
+  .eqbox .formula { font-family: Cambria, Georgia, "Times New Roman", serif; font-size: 1.15rem; color: var(--ink);
     margin: 10px 0 14px; white-space: nowrap; }
-  .eq .formula math { font-size: 1.3rem; text-align: left; }
-  .eq .frac { display: inline-flex; flex-direction: column; text-align: center; font-size: .95em; line-height: 1.25; }
-  .eq .frac span:first-child { border-bottom: 1px solid var(--ink); padding: 0 3px; }
-  .eq sup { font-size: .7em; }
-  .eq dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; margin: 0; }
-  .eq dt { font-family: Cambria, Georgia, serif; color: var(--ink); white-space: nowrap; }
-  .eq dd { margin: 0; }
+  .eqbox .formula math { font-size: 1.3rem; text-align: left; }
+  .eqbox .frac { display: inline-flex; flex-direction: column; text-align: center; font-size: .95em; line-height: 1.25; }
+  .eqbox .frac span:first-child { border-bottom: 1px solid var(--ink); padding: 0 3px; }
+  .eqbox sup { font-size: .7em; }
+  .eqbox dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; margin: 0; }
+  .eqbox dt { font-family: Cambria, Georgia, serif; color: var(--ink); white-space: nowrap; }
+  .eqbox dd { margin: 0; }
   .legend .k-exp { width: 14px; height: 2px; background: var(--ink); }
   #chartWrap { position: relative; }
   svg { display: block; width: 100%; }
@@ -94,7 +94,9 @@
   .hit:hover + .bar, .bar.on { fill: var(--bar-hover); }
   .exp { stroke: var(--ink); stroke-width: 2; stroke-linecap: round; }
   .legend .k-ref { width: 16px; height: 0; border-top: 2px dashed var(--ink-2); }
-  #qqWrap { position: relative; }
+  #qqWrap { position: relative; flex: 1 1 420px; min-width: 0; }
+  .qq-eq { border-left-color: var(--ink-2); }
+  .qq-slope { margin: 10px 0 0; font-size: .82rem; }
   .qq-ref { stroke: var(--ink-2); stroke-width: 2; stroke-dasharray: 5 4; pointer-events: none; }
   .qq-pt { fill: var(--bar); stroke: var(--surface); stroke-width: 1; pointer-events: none; }
   .tip { position: absolute; pointer-events: none; display: none; z-index: 2; white-space: nowrap;
@@ -173,19 +175,14 @@
           <svg id="chart" role="img" aria-labelledby="chartTitle"></svg>
           <div id="tip" class="tip"></div>
         </div>
-        <aside class="eq" id="eq" aria-label="Normal curve equation"></aside>
+        <aside class="eqbox eq" id="eq" aria-label="Normal curve equation"></aside>
       </div>
     </section>
 
     <section class="card">
       <h2 id="qqTitle">Normal quantile plot</h2>
-      <p class="explain">Each dot is one total or group of rolls: its total across the bottom, its <b>normal score</b>
-        (z &mdash; where it sits on a perfect bell, given how common it was) up the side. If the rolls follow a normal
-        distribution the dots lie along the straight reference line. Curves and bends away from the line show where
-        the data departs from normal, and the dots settle onto the line as you add dice. "Each total" plots every
-        total that came up; grouping into quartiles, quintiles or deciles instead shows only a sample of them
-        &mdash; never more than one dot per total, so it stays a true function even when a few possible totals
-        cover most of the groups (e.g. 1 or 2 dice).</p>
+      <p class="explain">Each dot plots a total against its <b>normal score</b> (z). Straight dots on the dashed line
+        mean normal; bends mean not.</p>
       <div class="legend">
         <span><i class="k-bar"></i>Totals rolled</span>
         <span><i class="k-ref"></i>Normal reference line</span>
@@ -197,8 +194,11 @@
         <label><input type="radio" name="qqGroup" value="5">Quintiles (5)</label>
         <label><input type="radio" name="qqGroup" value="10">Deciles (10)</label>
       </fieldset>
-      <div id="qqWrap">
-        <svg id="qq" role="img" aria-labelledby="qqTitle"></svg>
+      <div class="chartRow">
+        <div id="qqWrap">
+          <svg id="qq" role="img" aria-labelledby="qqTitle"></svg>
+        </div>
+        <aside class="eqbox qq-eq" id="qqEq" aria-label="Reference line equation"></aside>
       </div>
     </section>
 
@@ -501,6 +501,17 @@
     pts.forEach(p => {
       out += `<circle class="qq-pt" cx="${x(p.total).toFixed(1)}" cy="${y(p.z).toFixed(1)}" r="3.6"/>`;
     });
+
+    // Reference line in slope-intercept form, z = m*x + b, with m and b from mu and sigma.
+    const qSlope = 1 / sigma, qIntercept = -mu / sigma;
+    $('qqEq').innerHTML = `<b>Reference line</b>` +
+      `<div class="formula"><math display="block"><mi>z</mi><mo>=</mo><mfrac><mrow><mi>x</mi><mo>&minus;</mo><mi>&mu;</mi></mrow><mi>&sigma;</mi></mfrac></math></div>` +
+      `<dl><dt><i>z</i></dt><dd>normal score</dd>` +
+      `<dt><i>x</i></dt><dd>a total</dd>` +
+      `<dt>&mu; = ${mu.toFixed(1)}</dt><dd>average total</dd>` +
+      `<dt>&sigma; = ${sigma.toFixed(2)}</dt><dd>spread</dd></dl>` +
+      `<p class="qq-slope">As <i>z</i> = <i>mx</i> + <i>b</i>: <i>m</i> = 1/&sigma; = ${qSlope.toFixed(3)}, ` +
+      `<i>b</i> = &minus;&mu;/&sigma; = ${qIntercept.toFixed(3)}</p>`;
 
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
     svg.setAttribute('height', H);
